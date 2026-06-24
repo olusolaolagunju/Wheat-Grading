@@ -16,10 +16,15 @@ The model detects 10 classes: HRW wheat, four contrasting wheat classes (Durum, 
 
 ## Repository Structure
 ├── modules/ # Custom module definitions (drop-in for ultralytics/nn/modules)
+
 ├── 11-yaml-files/ # Model configuration YAML files (for ultralytics/cfg/models/11)
+
 ├── VRI-YOLO11-Bestpt/ # Trained weights for the proposed VRI-YOLO11 model
+
 ├── YOLO11-Bestpt/ # Trained weights for the YOLO11 baseline
+
 └── .gitattributes
+
 
 
 > **Note:** The `modules/` and `11-yaml-files/` directories contain the complete set of modules and configurations explored during this study, including experimental variants that were tested but not adopted in the final paper. The configuration used for the published model is **`VRI-YOLO11.yaml`**, and its corresponding trained weights are in **`VRI-YOLO11-Bestpt/`**. Other files are provided for transparency and reproducibility and should be treated as experimental.
