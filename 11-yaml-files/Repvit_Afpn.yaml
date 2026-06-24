@@ -1,0 +1,62 @@
+# custom-yolo11-repvit.yaml
+nc: 10
+scales:
+  n: [0.50, 0.25, 1024]
+
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv, [32, 3, 2]]              # 0-P1/2  initial stem conv
+  - [-1, 1, RepViTBlock, [64, 2]]          # 1-P2/4  downsample
+  - [-1, 1, RepViTBlock, [64, 1]]          # 2       basic block
+
+  - [-1, 1, RepViTBlock, [128, 2]]         # 3-P3/8  downsample
+  - [-1, 1, RepViTBlock, [128, 1]]         # 4       ← P3 skip target
+
+  - [-1, 1, RepViTBlock, [256, 2]]         # 5-P4/16 downsample
+  - [-1, 1, RepViTBlock, [256, 1]]         # 6       ← P4 skip target
+
+  - [-1, 1, RepViTBlock, [512, 2]]         # 7-P5/32 downsample
+  - [-1, 1, RepViTBlock, [512, 1]]         # 8
+
+  - [-1, 1, Conv, [1024, 1, 1]]            # 9  channel expansion
+  - [-1, 1, SPPF, [1024, 5]]              # 10
+  - [-1, 2, C2PSA, [1024]]               # 11 ← neck entry (safe: 1024×0.25=256)
+  
+  # ── Head (AFPN neck) ──────────────────────────────────────────────────────────
+# Channel annotations use UNSCALED values (parse_model applies width multiplier)
+head:
+
+  # ── Stage 1: Fuse P3 + P4 (adjacent levels, small semantic gap) ───────────
+  #
+  # P4 → P3 scale path:
+  - [6,       1, AFPNUp,    [256]]          # 12  P4(512→256) bilinear to P3 scale
+  - [[-1, 4], 1, ASF2,      [256]]          # 13  adaptive fuse up(P4) + P3 → P3_s1
+  - [-1,      1, BasicBlock, [256]]         # 14  refine P3_s1  ← Stage-1 P3
+
+  # P3 → P4 scale path:
+  - [4,       1, AFPNDown,  [512]]          # 15  P3(256→512) strided to P4 scale
+  - [[-1, 6], 1, ASF2,      [512]]          # 16  adaptive fuse down(P3) + P4 → P4_s1
+  - [-1,      1, BasicBlock, [512]]         # 17  refine P4_s1  ← Stage-1 P4
+
+  # ── Stage 2: Incorporate P5 (top-level features) ──────────────────────────
+  #
+  # P5 → P4 scale, fuse with Stage-1 P4:
+  - [10,       1, AFPNUp,    [512]]         # 18  P5(1024→512) bilinear to P4 scale
+  - [[-1, 16], 1, ASF2,      [512]]         # 19  adaptive fuse up(P5) + P4_s1 → P4_s2
+  - [-1,       1, BasicBlock, [512]]        # 20  P4 FINAL OUTPUT (medium objects)
+
+  # P4_s2 → P3 scale, fuse with Stage-1 P3:
+  - [19,       1, AFPNUp,    [256]]         # 21  P4_s2(512→256) bilinear to P3 scale
+  - [[-1, 13], 1, ASF2,      [256]]         # 22  adaptive fuse up(P4_s2) + P3_s1
+  - [-1,       1, BasicBlock, [256]]        # 23  P3 FINAL OUTPUT (small objects)
+
+  # Stage-1 P4 → P5 scale, fuse with original P5:
+  - [16,       1, AFPNDown,  [1024]]        # 24  P4_s1(512→1024) strided to P5 scale
+  - [[-1, 10], 1, ASF2,      [1024]]        # 25  adaptive fuse down(P4_s1) + P5
+  - [-1,       1, BasicBlock, [1024]]       # 26  P5 FINAL OUTPUT (large objects)
+
+  # ── Detection ──────────────────────────────────────────────────────────────
+  # P3 (layer 22) → small objects   80×80
+  # P4 (layer 19) → medium objects  40×40
+  # P5 (layer 25) → large objects   20×20
+  - [[23, 20, 26], 1, Detect, [nc]]         # 26

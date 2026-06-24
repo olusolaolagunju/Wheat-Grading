@@ -1,0 +1,50 @@
+# custom-yolo11-repvit.yaml
+nc: 10
+scales:
+  n: [0.50, 0.25, 1024]
+
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv, [32, 3, 2]]              # 0-P1/2  initial stem conv
+  - [-1, 1, RepViTBlock, [64, 2]]          # 1-P2/4  downsample
+  - [-1, 1, RepViTBlock, [64, 1]]          # 2       basic block
+
+  - [-1, 1, RepViTBlock, [128, 2]]         # 3-P3/8  downsample
+  - [-1, 1, RepViTBlock, [128, 1]]         # 4       ← P3 skip target
+
+  - [-1, 1, RepViTBlock, [256, 2]]         # 5-P4/16 downsample
+  - [-1, 1, RepViTBlock, [256, 1]]         # 6       ← P4 skip target
+
+  - [-1, 1, RepViTBlock, [512, 2]]         # 7-P5/32 downsample
+  - [-1, 1, RepViTBlock, [512, 1]]         # 8
+
+  - [-1, 1, Conv, [1024, 1, 1]]            # 9  channel expansion
+  - [-1, 1, SPPF, [1024, 5]]              # 10
+  - [-1, 2, C2PSA, [1024]]               # 11 ← neck entry (safe: 1024×0.25=256)
+
+# YOLO11 head — default P3 + P4 + P5 three-scale
+# CARAFE args: [in_channels, scale_factor]
+head:
+
+  # Top-down path (semantic info flows DOWN)
+
+  - [-1,       1, CARAFE, [1024, 2]]        # 12  P5 20x20 -> 40x40  (replaces nn.Upsample)
+  - [[-1, 6],  1, Concat, [1]]              # 13  cat backbone P4 (layer 6)
+  - [-1,       2, C3k2,   [512, False]]     # 14  fused P4
+
+  - [-1,       1, CARAFE, [512, 2]]         # 15  P4 40x40 -> 80x80  (replaces nn.Upsample)
+  - [[-1, 4],  1, Concat, [1]]              # 16  cat backbone P3 (layer 4)
+  - [-1,       2, C3k2,   [256, False]]     # 17  P3/8-small
+
+  # Bottom-up path (spatial detail flows UP)
+
+  - [-1,       1, Conv,   [256, 3, 2]]      # 18  P3 80x80 -> 40x40  (strided conv, unchanged)
+  - [[-1, 14], 1, Concat, [1]]              # 19  cat head P4 (layer 13)
+  - [-1,       2, C3k2,   [512, False]]     # 20  P4/16-medium
+
+  - [-1,       1, Conv,   [512, 3, 2]]      # 21  P4 40x40 -> 20x20  (strided conv, unchanged)
+  - [[-1, 10], 1, Concat, [1]]              # 22  cat head P5 (layer 10)
+  - [-1,       2, C3k2,   [1024, True]]     # 23  P5/32-large
+
+  # Detection
+  - [[17, 20, 23], 1, Detect, [nc]]         # 23  P3 + P4 + P5

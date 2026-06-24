@@ -1,0 +1,38 @@
+nc: 10
+scales:
+  n: [0.50, 0.25, 1024]
+
+backbone:
+  - [-1, 1, Conv, [32, 3, 2]]          # 0-P1/2
+  - [-1, 1, StarBlock, [32, 32]]       # 1
+
+  - [-1, 1, Conv, [64, 3, 2]]          # 2-P2/4
+  - [-1, 1, StarBlock, [64, 64]]       # 3
+
+  - [-1, 1, Conv, [128, 3, 2]]         # 4-P3/8
+  - [-1, 1, StarBlock, [128, 128]]     # 5       ← P3 skip target
+
+  - [-1, 1, Conv, [256, 3, 2]]         # 6-P4/16
+  - [-1, 1, StarBlock, [256, 256]]     # 7       ← P4 skip target
+
+  - [-1, 1, Conv, [512, 3, 2]]         # 8-P5/32
+  - [-1, 1, StarBlock, [512, 512]]     # 9
+
+  - [-1, 1, Conv, [1024, 1, 1]]        # 10 ← channel expansion (same fix as ShuffleNet)
+  - [-1, 1, SPPF, [1024, 5]]           # 11
+  - [-1, 2, SEAM, [1024]]             # 12 ← now safe: 1024×0.25=256 → num_heads=2
+
+# YOLO11n head
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]] #13
+  - [[-1, 7], 1, Concat, [1]]                # 14cat backbone P4
+  - [-1, 2, C3k2, [512, False]]              #15 feature fusion P4 (id:13)
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]#16
+  - [[-1, 5], 1, Concat, [1]]                # 17 cat backbone P3
+  - [-1, 2, C3k2, [256, False]]              # 18crefined features for P3 (id:16)
+  
+  - [-1, 1, ECA, [256]] 
+
+  # Detection Heads (P3-small and P4-medium)
+  - [[18, 15], 1, Detect, [nc]]
