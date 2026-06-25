@@ -139,5 +139,5 @@ This repository builds on [Ultralytics YOLO11](https://github.com/ultralytics/ul
 ## Acknowledgments
 
 This work was conducted in the Department of Grain Science and Industry at Kansas State University. The architecture builds on [Ultralytics YOLO11](https://github.com/ultralytics/ultralytics).
-Key points about this version:
+
 
