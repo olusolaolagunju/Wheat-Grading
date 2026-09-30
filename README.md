@@ -4,13 +4,12 @@ This repository contains the trained weights, custom modules, and model configur
 
 ## Overview
 
-VRI-YOLO11 modifies the YOLO11 architecture through three changes:
+VRI-YOLO11 modifies the YOLO11 architecture through two changes:
 
-- **GhostBottleneck substitution** in the C3K2 backbone modules, replacing standard bottleneck convolutions with cheaper ghost feature generation to reduce parameters and FLOPs.
-- **CSMM-SEAM attention** in the neck, replacing the C2PSA block with a multi-scale spatial attention module for improved feature discrimination at negligible computational cost.
+- **SEAM attention** in the neck, replacing the C2PSA block with a multi-scale spatial attention module for improved feature discrimination at negligible computational cost.
 - **P5 detection head removal**, eliminating the large-object detection scale and its associated bottom-up pathway, since wheat kernels fall within the small-to-medium size range.
 
-Relative to the YOLO11 baseline, VRI-YOLO11 reduces parameters by 44.0%, GFLOPs by 22.6%, and model size by 35.2%, while achieving a mAP50 of 97.9% on internal validation.
+Relative to the YOLO11 baseline, VRI-YOLO11 reduces parameters by 39.8.0%, GFLOPs by 17.4%, and model size by 38%, inference latency by 22.5% (1.39ms, 720.4 FPS) while achieving a mAP50 of 95.9% on internal validation and 91.9% on external dataset.
 
 The model detects 10 classes: HRW wheat, four contrasting wheat classes (Durum, Hard Red Spring, Hard White, Soft Red Winter), damaged kernels, shrunken kernels, dockage, stones, and sorghum.
 
@@ -29,6 +28,21 @@ The model detects 10 classes: HRW wheat, four contrasting wheat classes (Durum, 
 
 > **Note:** The `modules/` and `11-yaml-files/` directories contain the complete set of modules and configurations explored during this study, including experimental variants that were tested but not adopted in the final paper. The configuration used for the published model is **`VRI-YOLO11.yaml`**, and its corresponding trained weights are in **`VRI-YOLO11-Bestpt/`**. Other files are provided for transparency and reproducibility and should be treated as experimental.
 
+## Ablation Study Files
+
+The table below links the architecture configurations behind the ablation study to their training/validation notebooks. Custom modules (`C3k2Ghost`, `SEAM`, etc.) referenced by the Ghost and SEAM variants are defined in [`modules/yolo11_fixed_modules.py`](modules/yolo11_fixed_modules.py).
+
+| Variant | Architecture YAML | Notebook | Description |
+|---|---|---|---|
+| Baseline | [`yolo11.yaml`](11-yaml-files/yolo11.yaml) | [`YOLO11n.ipynb`](Notebooks/YOLO11n.ipynb) | Stock YOLO11 backbone/head, P3-P5 outputs, C2PSA neck |
+| NoP5 | [`NoP5.yaml`](11-yaml-files/NoP5.yaml) | — | P5 detection head and its bottom-up path removed; Detect on P3/P4 only |
+| SEAM | [`SEAM.yaml`](11-yaml-files/SEAM.yaml) | — | C2PSA replaced with SEAM attention after SPPF; P3-P5 outputs retained |
+| GHOST | [`GHOST.yaml`](11-yaml-files/GHOST.yaml) | — | C3k2 backbone/neck blocks replaced with `C3k2Ghost`; P3-P5 outputs retained |
+| NoP5-GHOST | [`NoP5-GHOST.yaml`](11-yaml-files/NoP5-GHOST.yaml) | — | Combines the NoP5 head with the Ghost backbone/neck substitution |
+| NoP5-SEAM | [`NoP5-SEAM.yaml`](11-yaml-files/NoP5-SEAM.yaml) | [`NoP5-SEAM.ipynb`](Notebooks/NoP5-SEAM.ipynb) | Combines the NoP5 head with SEAM attention; basis for the final **VRI-YOLO11** architecture |
+
+> The `NoP5-SEAM.ipynb` notebook loads the architecture by the filename it had before it was renamed to `NoP5-SEAM.yaml` (`Csm-Nop5.yaml`) — kept as-is since it is a working record and its saved cell outputs already reflect that run.
+
 ## Requirements
 
 - Python 3.12
@@ -41,7 +55,22 @@ pip install ultralytics
 
 ## Quick Start: Inference with Pretrained Weights
 
-The simplest way to use VRI-YOLO11 is to run the trained weights directly. No source modifications are required for inference, since the weights file already contains the architecture definition.
+`VRI-YOLO11-Bestpt/best.pt` is a pickled model object, not just weights: its SEAM neck layer was defined in a custom module (`modules/yolo11_fixed_modules.py`), so a plain `pip install ultralytics` cannot unpickle it on its own — Python needs to find that class under the exact path the checkpoint was saved with. Register it in memory before loading the checkpoint (no need to modify your Ultralytics installation on disk):
+
+```python
+import sys, importlib.util
+
+# Point this at your local copy of modules/yolo11_fixed_modules.py
+spec = importlib.util.spec_from_file_location(
+    "ultralytics.nn.modules.yolo11_fixed_modules",
+    "modules/yolo11_fixed_modules.py",
+)
+custom_mod = importlib.util.module_from_spec(spec)
+sys.modules["ultralytics.nn.modules.yolo11_fixed_modules"] = custom_mod
+spec.loader.exec_module(custom_mod)
+```
+
+Once that's run, load and use the model as normal:
 
 ```python
 from ultralytics import YOLO
@@ -52,16 +81,20 @@ model = YOLO("VRI-YOLO11-Bestpt/best.pt")
 # Run inference on your images
 results = model.predict(
     source       = "path/to/images/",
-    conf         = 0.345,
-    iou          = 0.30,
+    imgsz        = 1024,
+    batch        = 16,
+    device       = "cuda:0",
+    conf         = 0.001,
+    iou          = 0.7,
     agnostic_nms = True,
+    max_det      = 500,
     save         = True,
 )
 ```
 
 ## Validation
 
-To reproduce validation metrics on a labeled dataset:
+To reproduce validation metrics on a labeled dataset (run the registration snippet from Quick Start first if this is a fresh script/session):
 
 ```python
 from ultralytics import YOLO
@@ -70,8 +103,8 @@ model = YOLO("VRI-YOLO11-Bestpt/best.pt")
 
 metrics = model.val(
     data         = "path/to/data_config.yaml",
-    conf         = 0.25,
-    iou          = 0.30,
+    conf         = 0.001,
+    iou          = 0.7,
     agnostic_nms = True,
     device       = "cuda:0",
     split        = "val",
@@ -112,11 +145,8 @@ To retrain or modify the architecture, the custom modules must be registered in 
 
 ## Dataset
 
-The dataset used to train and evaluate VRI-YOLO11 is available separately:
+The dataset used to train and evaluate VRI-YOLO11 is available here: https://zenodo.org/records/22905434 
 
-
-
-It contains 740 annotated images with more than 36,000 labeled instances across the 10 classes listed above.
 
 ## Citation
 
@@ -124,10 +154,10 @@ If you use these weights, code, or the VRI-YOLO11 architecture in your research,
 
 ```bibtex
 @article{olagunju2026vriyolo11,
-  title   = {VRI-YOLO11: An Optimized YOLO-Based Model for Automated Hard Red Winter Wheat Grading},
+  title   = {VRI-YOLO11: An Optimized YOLO-Based Model for Hard Red Winter Wheat Grading Support},
   author  = {Olusola Olagunju, Doina Caragea, and Yonghui Li},
   journal = {Computers and Electronics in Agriculture},
-  year    = {2026},
+  year    = {2027},
   doi     = {DOI}
 }
 ```
