@@ -9,7 +9,7 @@ VRI-YOLO11 modifies the YOLO11 architecture through two changes:
 - **SEAM attention** in the neck, replacing the C2PSA block with a multi-scale spatial attention module for improved feature discrimination at negligible computational cost.
 - **P5 detection head removal**, eliminating the large-object detection scale and its associated bottom-up pathway, since wheat kernels fall within the small-to-medium size range.
 
-Relative to the YOLO11 baseline, VRI-YOLO11 reduces parameters by 39.8.0%, GFLOPs by 17.4%, and model size by 38%, inference latency by 22.5% (1.39ms, 720.4 FPS) while achieving a mAP50 of 95.9% on internal validation and 91.9% on external dataset.
+Relative to the YOLO11 baseline, VRI-YOLO11 reduces parameters by 39.8.0%, GFLOPs by 17.4%, and model size by 38%, inference latency by 22.9% (1.339ms, 774.6 FPS) while achieving a mAP50 of 95.9% on internal validation and 91.9% on external dataset.
 
 The model detects 10 classes: HRW wheat, four contrasting wheat classes (Durum, Hard Red Spring, Hard White, Soft Red Winter), damaged kernels, shrunken kernels, dockage, stones, and sorghum.
 
@@ -30,15 +30,13 @@ The model detects 10 classes: HRW wheat, four contrasting wheat classes (Durum, 
 
 ## Ablation Study Files
 
-The table below links the architecture configurations behind the ablation study to their training/validation notebooks. Custom modules (`C3k2Ghost`, `SEAM`, etc.) referenced by the Ghost and SEAM variants are defined in [`modules/yolo11_fixed_modules.py`](modules/yolo11_fixed_modules.py).
+The table below links the architecture configurations behind the ablation study to their training/validation notebooks. Custom modules (`C3k2Ghost`, `SEAM`, etc.) are referenced by the SEAM variants as defined in [`modules/yolo11_fixed_modules.py`](modules/yolo11_fixed_modules.py).
 
 | Variant | Architecture YAML | Notebook | Description |
 |---|---|---|---|
 | Baseline | [`yolo11.yaml`](11-yaml-files/yolo11.yaml) | [`YOLO11n.ipynb`](Notebooks/YOLO11n.ipynb) | Stock YOLO11 backbone/head, P3-P5 outputs, C2PSA neck |
 | NoP5 | [`NoP5.yaml`](11-yaml-files/NoP5.yaml) | — | P5 detection head and its bottom-up path removed; Detect on P3/P4 only |
 | SEAM | [`SEAM.yaml`](11-yaml-files/SEAM.yaml) | — | C2PSA replaced with SEAM attention after SPPF; P3-P5 outputs retained |
-| GHOST | [`GHOST.yaml`](11-yaml-files/GHOST.yaml) | — | C3k2 backbone/neck blocks replaced with `C3k2Ghost`; P3-P5 outputs retained |
-| NoP5-GHOST | [`NoP5-GHOST.yaml`](11-yaml-files/NoP5-GHOST.yaml) | — | Combines the NoP5 head with the Ghost backbone/neck substitution |
 | NoP5-SEAM | [`NoP5-SEAM.yaml`](11-yaml-files/NoP5-SEAM.yaml) | [`NoP5-SEAM.ipynb`](Notebooks/NoP5-SEAM.ipynb) | Combines the NoP5 head with SEAM attention; basis for the final **VRI-YOLO11** architecture |
 
 > The `NoP5-SEAM.ipynb` notebook loads the architecture by the filename it had before it was renamed to `NoP5-SEAM.yaml` (`Csm-Nop5.yaml`) — kept as-is since it is a working record and its saved cell outputs already reflect that run.
