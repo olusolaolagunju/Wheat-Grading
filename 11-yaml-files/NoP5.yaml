@@ -33,11 +33,11 @@ backbone:
 head:
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
   - [[-1, 6], 1, Concat, [1]]                # cat backbone P4
-  - [-1, 2, C3k2, [512, True]]              # feature fusion P4 (id:13)
+  - [-1, 2, C3k2, [512, False]]              # feature fusion P4 (id:13)
 
   - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
   - [[-1, 4], 1, Concat, [1]]                # cat backbone P3
-  - [-1, 2, C3k2, [256, True]]              # refined features for P3 (id:16)
+  - [-1, 2, C3k2, [256, False]]              # refined features for P3 (id:16)
 
   # Detection Heads (P3-small and P4-medium)
   - [[16, 13], 1, Detect, [nc]]
