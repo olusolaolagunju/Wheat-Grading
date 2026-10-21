@@ -154,7 +154,7 @@ If you use these weights, code, or the VRI-YOLO11 architecture in your research,
 @article{olagunju2026vriyolo11,
   title   = {VRI-YOLO11: An Optimized YOLO-Based Model for Hard Red Winter Wheat Grading Support},
   author  = {Olusola Olagunju, Doina Caragea, and Yonghui Li},
-  journal = {Computers and Electronics in Agriculture},
+  journal = {Manuscript in peer-review},
   year    = {2027},
   doi     = {DOI}
 }
