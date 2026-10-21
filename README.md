@@ -9,7 +9,7 @@ VRI-YOLO11 modifies the YOLO11 architecture through two changes:
 - **SEAM attention** in the neck, replacing the C2PSA block with a multi-scale spatial attention module for improved feature discrimination at negligible computational cost.
 - **P5 detection head removal**, eliminating the large-object detection scale and its associated bottom-up pathway, since wheat kernels fall within the small-to-medium size range.
 
-Relative to the YOLO11 baseline, VRI-YOLO11 reduces parameters by 39.8.0%, GFLOPs by 17.4%, and model size by 38%, inference latency by 22.9% (1.339ms, 774.6 FPS) while achieving a mAP50 of 95.9% on internal validation and 91.9% on external dataset.
+Relative to the YOLO11 baseline, VRI-YOLO11 reduces parameters by 39.8%, GFLOPs by 17.4%, model size by 38%, and inference latency by 22.9% (1.339ms, 774.6 FPS) while achieving a mAP50 of 95.9% on internal validation and 91.9% on external dataset.
 
 The model detects 10 classes: HRW wheat, four contrasting wheat classes (Durum, Hard Red Spring, Hard White, Soft Red Winter), damaged kernels, shrunken kernels, dockage, stones, and sorghum.
 
@@ -143,7 +143,7 @@ To retrain or modify the architecture, the custom modules must be registered in 
 
 ## Dataset
 
-The dataset used to train and evaluate VRI-YOLO11 is available here: https://zenodo.org/records/22905434 
+The dataset used to train and evaluate VRI-YOLO11 is deposited on Zenodo: https://zenodo.org/records/22905434 (DOI: 10.5281/zenodo.22905434). It contains 740 annotated training and validation images, 30 independent test images, and 40 unannotated images of other grains, in YOLO format. The files are under embargo until December 25, 2026, pending publication of the manuscript, and will then be openly available under a CC BY 4.0 license.
 
 
 ## Citation
@@ -151,12 +151,11 @@ The dataset used to train and evaluate VRI-YOLO11 is available here: https://zen
 If you use these weights, code, or the VRI-YOLO11 architecture in your research, please cite:
 
 ```bibtex
-@article{olagunju2026vriyolo11,
+@unpublished{olagunju2026vriyolo11,
   title   = {VRI-YOLO11: An Optimized YOLO-Based Model for Hard Red Winter Wheat Grading Support},
-  author  = {Olusola Olagunju, Doina Caragea, and Yonghui Li},
-  journal = {Manuscript in peer-review},
-  year    = {2027},
-  doi     = {DOI}
+  author  = {Olusola Olagunju and Doina Caragea and Yonghui Li},
+  note    = {Manuscript in peer review},
+  year    = {2026}
 }
 ```
 
